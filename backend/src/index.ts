@@ -1,29 +1,16 @@
-import express from "express";
-import mysql from "mysql2";
+import express from 'express';
+import dotenv from 'dotenv';
+import './fly';
 
-// Create a connection to MySQL
-const db = mysql.createConnection({
-  host: "localhost",
-  user: "your_username",
-  password: "your_password",
-  database: "your_database",
-});
-
-// Check the connection
-db.connect((err) => {
-  if (err) {
-    console.error("Error connecting to MySQL:", err);
-  } else {
-    console.log("Connected to MySQL");
-  }
-});
+dotenv.config();
 
 const app = express();
-const port = 9000;
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
+app.get('/', (req, res) => {
+  res.send('Hello World!');
 });
+
+const port = process.env.PORT || 9000;
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
