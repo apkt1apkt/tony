@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  isActive          Boolean             @default(true) @map("is_active")
+  createdAt         DateTime            @default(now())
+  tournaments       Tournament[]        @relation("PlayerTournaments")
+  fixturesHome      Fixture[]           @relation("HomeTeam")
+  fixturesAway      Fixture[]           @relation("AwayTeam")
+  PlayerTournaments PlayerTournaments[]
+  Tournament        Tournament[]
+}
+
+enum TournamentStatus {
+  Completed
+  OnGoing
+}
+
+enum TournamentType {
+  Knockout
+  League
+}
+
+model Tournament {
+  id                Int                 @id @default(autoincrement())
+  name              String              @unique
+  status            TournamentStatus    @default(OnGoing)
+  type              TournamentType      @default(League)
+  numOfLegs         Int                 @default(1)
+  numOfPlayers      Int
+  winnerId          Int?
+  winner            Player?             @relation(fields: [winnerId], references: [id])
+  players           Player[]            @relation("PlayerTournaments")
+  fixtures          Fixture[]
+  createdAt         DateTime            @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  PlayerTournaments PlayerTournaments[]
+}
+
+model PlayerTournaments {
+  playerId     Int
+  tournamentId Int
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, tournamentId])
+}
+
+model Fixture {
+  id           Int        @id @default(autoincrement())
+  round        Int
+  home         Player?    @relation("HomeTeam", fields: [homeId], references: [id])
+  homeId       Int?
+  away         Player?    @relation("AwayTeam", fields: [awayId], references: [id])
+  awayId       Int?
+  homeScore    Int?
+  awayScore    Int?
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  tournamentId Int
+  createdAt    DateTime   @default(now())
+}
