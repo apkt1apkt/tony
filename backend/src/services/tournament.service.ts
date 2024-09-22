@@ -1,4 +1,4 @@
-import { Tournament, TournamentStatus } from '@prisma/client';
+import { Tournament } from '@prisma/client';
 import { prisma } from '../db';
 import { saveGeneratedLeagueFixtures } from './fixture.service';
 
@@ -30,9 +30,6 @@ export const getTournamentById = async (tournamentId: number) => {
 
 export const getLatestOnGoingTournament = async () => {
   const res = await prisma.tournament.findFirst({
-    where: {
-      status: TournamentStatus.OnGoing,
-    },
     include: {
       fixtures: {
         include: {
@@ -110,7 +107,6 @@ export const calculateStandings = async (tournamentId: number) => {
     const homeFixtures = player.fixturesHome;
     const awayFixtures = player.fixturesAway;
 
-    // Combine home and away fixtures and sort them by round in descending order
     const allFixtures = [...homeFixtures, ...awayFixtures].sort(
       (a, b) => b.round - a.round,
     );
@@ -161,8 +157,7 @@ export const calculateStandings = async (tournamentId: number) => {
       }
     });
 
-    // form is already in descending round order due to sorting above
-    const recentForm = form.slice(0, 5); // Get the most recent 5 results
+    const recentForm = form.slice(0, 5);
 
     const points = wins * 3 + draws * 1;
     const goalDifference = goalsScored - goalsConceded;
@@ -182,7 +177,6 @@ export const calculateStandings = async (tournamentId: number) => {
     };
   });
 
-  // Sort standings by points, goal difference, and goals scored
   standings.sort((a, b) => {
     if (b.points !== a.points) {
       return b.points - a.points;
@@ -199,7 +193,6 @@ export const calculateStandings = async (tournamentId: number) => {
     return 0;
   });
 
-  // Assign ranks, with ties getting the same rank
   let rank = 1;
   for (let i = 0; i < standings.length; i++) {
     if (i > 0) {
@@ -210,7 +203,7 @@ export const calculateStandings = async (tournamentId: number) => {
         currentPlayer.goalDifference === prevPlayer.goalDifference &&
         currentPlayer.goalsScored === prevPlayer.goalsScored
       ) {
-        currentPlayer.rank = prevPlayer.rank; // Same rank as previous player
+        currentPlayer.rank = prevPlayer.rank;
       } else {
         currentPlayer.rank = rank;
       }

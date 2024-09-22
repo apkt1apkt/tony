@@ -16,12 +16,8 @@ model Player {
   fixturesHome      Fixture[]           @relation("HomeTeam")
   fixturesAway      Fixture[]           @relation("AwayTeam")
   PlayerTournaments PlayerTournaments[]
-  Tournament        Tournament[]
-}
 
-enum TournamentStatus {
-  Completed
-  OnGoing
+  @@index([isActive])
 }
 
 enum TournamentType {
@@ -32,18 +28,15 @@ enum TournamentType {
 model Tournament {
   id                Int                 @id @default(autoincrement())
   name              String              @unique
-  status            TournamentStatus    @default(OnGoing)
   type              TournamentType      @default(League)
   numOfLegs         Int                 @default(1)
   numOfPlayers      Int
-  winnerId          Int?
-  winner            Player?             @relation(fields: [winnerId], references: [id])
   players           Player[]            @relation("PlayerTournaments")
   fixtures          Fixture[]
   createdAt         DateTime            @default(now())
-  startedAt         DateTime?
-  completedAt       DateTime?
   PlayerTournaments PlayerTournaments[]
+
+  @@index([type])
 }
 
 model PlayerTournaments {
@@ -53,6 +46,8 @@ model PlayerTournaments {
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   @@id([playerId, tournamentId])
+  @@index([playerId])
+  @@index([tournamentId])
 }
 
 model Fixture {
@@ -67,4 +62,9 @@ model Fixture {
   tournament   Tournament @relation(fields: [tournamentId], references: [id])
   tournamentId Int
   createdAt    DateTime   @default(now())
+
+  @@index([round])
+  @@index([tournamentId])
+  @@index([homeId])
+  @@index([awayId])
 }

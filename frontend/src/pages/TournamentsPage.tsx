@@ -4,7 +4,6 @@ import { Table, Button, Input, Form, message, Divider, Select } from "antd";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost } from "../api";
 import { Link, Outlet } from "react-router-dom";
-import { format } from "date-fns";
 import { TournamentType } from "../types";
 import { TournamentTypeDisplay } from "../components/TournamentTypeDisplay";
 
@@ -51,25 +50,7 @@ const TournamentsPage: React.FC = () => {
       render: (type: any) => <TournamentTypeDisplay type={type} />,
     },
     { title: "Legs", dataIndex: "numOfLegs", key: "numOfLegs", align: "center", width: 50 },
-    { title: "Status", dataIndex: "status", key: "status", align: "center", width: 100 },
-    { title: "Winner", dataIndex: "winner", key: "winner", align: "center", width: 100 },
     { title: "Players", dataIndex: "numOfPlayers", key: "numOfPlayers", width: 50, align: "center" },
-    {
-      title: "Started At",
-      dataIndex: "startedAt",
-      key: "startedAt",
-      width: 120,
-      align: "center",
-      render: (date: any) => (date ? format(date, "h:mm a") : ""),
-    },
-    {
-      title: "Completed At",
-      dataIndex: "completedAt",
-      key: "CompletedAt",
-      width: 130,
-      align: "center",
-      render: (date: any) => (date ? format(date, "h:mm a") : ""),
-    },
     {
       title: "Actions",
       key: "actions",

@@ -35,7 +35,7 @@ const columns = [
       <Tag color="green">
         {record.wins}-{record.draws}-{record.losses}
       </Tag>
-    ), // Green tag for wins-draws-losses format
+    ),
   },
   {
     title: "G",
@@ -46,7 +46,7 @@ const columns = [
       <Tag color="purple">
         {record.goalsScored}:{record.goalsConceded}
       </Tag>
-    ), // Purple for goals scored and conceded
+    ),
   },
   {
     title: "Pts",
@@ -54,7 +54,7 @@ const columns = [
     key: "points",
     align: "center",
     width: 30,
-    render: (points: any) => <Tag color="cyan">{points}</Tag>, // Cyan for points
+    render: (points: any) => <Tag color="cyan">{points}</Tag>,
   },
   {
     title: "Form",
@@ -64,7 +64,7 @@ const columns = [
       <div style={{ fontSize: 12 }}>
         {record.form.map((result: any, index: number) => (
           <Tag
-            color={result === "W" ? "green" : result === "L" ? "red" : "geekblue"}
+            color={result === "W" ? "#04b527" : result === "L" ? "#f50" : "#FFC300"}
             key={index}
             style={{ marginRight: 4 }}
           >
