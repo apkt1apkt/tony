@@ -1,82 +1,115 @@
 import { Fixture, TournamentType } from '@prisma/client';
 import { generateLeagueFixtures } from '../fixtures/league';
-import { prisma } from '../db';
+import { prisma, PrismaTransaction } from '../db';
 import { generateKnockoutFixtures } from '../fixtures/knockout';
 
 export const saveFixtureScore = async (
   fixtureId: number,
   { homeScore, awayScore }: { homeScore: number; awayScore: number },
 ) => {
-  const updatedFixture = await prisma.fixture.update({
-    where: {
-      id: fixtureId,
-    },
-    include: {
-      tournament: true,
-    },
-    data: {
-      homeScore,
-      awayScore,
-    },
-  });
-  const round = updatedFixture.round;
-  if (updatedFixture.tournament?.type === TournamentType.League) {
-    await prisma.fixture.updateMany({
+  return prisma.$transaction(async (prisma) => {
+    const updatedFixture = await prisma.fixture.update({
       where: {
-        round,
-        tournamentId: updatedFixture.tournamentId,
-        homeId: null,
-        awayScore: null,
+        id: fixtureId,
+      },
+      include: {
+        tournament: true,
       },
       data: {
-        homeScore: 0,
-        awayScore: 3,
+        homeScore,
+        awayScore,
       },
     });
-    await prisma.fixture.updateMany({
-      where: {
-        round,
-        tournamentId: updatedFixture.tournamentId,
-        awayId: null,
-        homeScore: null,
-      },
-      data: {
-        awayScore: 0,
-        homeScore: 3,
-      },
-    });
-  }
-  if (updatedFixture.tournament?.type === TournamentType.Knockout) {
-    const availableFixture = await prisma.fixture.findFirst({
-      where: {
-        round: updatedFixture.round,
-        tournamentId: updatedFixture.tournamentId,
-        OR: [
-          {
-            homeScore: null,
+    const round = updatedFixture.round;
+    if (updatedFixture.tournament?.type === TournamentType.League) {
+      await prisma.fixture.updateMany({
+        where: {
+          round,
+          tournamentId: updatedFixture.tournamentId,
+          homeId: null,
+          awayScore: null,
+        },
+        data: {
+          homeScore: 0,
+          awayScore: 3,
+        },
+      });
+      await prisma.fixture.updateMany({
+        where: {
+          round,
+          tournamentId: updatedFixture.tournamentId,
+          awayId: null,
+          homeScore: null,
+        },
+        data: {
+          awayScore: 0,
+          homeScore: 3,
+        },
+      });
+    }
+    if (updatedFixture.tournament?.type === TournamentType.Knockout) {
+      if (updatedFixture.tournament?.numOfLegs === 1) {
+        if (updatedFixture.awayScore === updatedFixture.homeScore)
+          throw new Error('Scores cannot be a draw');
+      } else {
+        const reverseFixture = await prisma.fixture.findFirst({
+          where: {
+            round: updatedFixture.round,
+            tournamentId: updatedFixture.tournamentId,
+            homeId: updatedFixture.awayId,
+            awayId: updatedFixture.homeId,
           },
-          {
-            awayScore: null,
-          },
-        ],
-      },
-    });
-    if (!availableFixture) {
-      const allFixturesOfRound = await prisma.fixture.findMany({
+        });
+        if (!reverseFixture)
+          throw new Error('There seems to be no reverse fixture for this draw');
+        if (
+          reverseFixture.homeScore !== null ||
+          reverseFixture.awayScore !== null
+        ) {
+          if (
+            sum(updatedFixture.awayScore, reverseFixture.homeScore) ===
+            sum(updatedFixture.awayScore, reverseFixture.homeScore)
+          ) {
+            throw new Error('Both legs cannot equate to a draw');
+          }
+        }
+      }
+      const availableFixture = await prisma.fixture.findFirst({
         where: {
           round: updatedFixture.round,
           tournamentId: updatedFixture.tournamentId,
+          OR: [
+            {
+              homeScore: null,
+            },
+            {
+              awayScore: null,
+            },
+          ],
         },
       });
-      const roundWinners = getRoundWinners(allFixturesOfRound);
-      await saveGenerateKnockoutFixtures(round + 1, {
-        numOfLegs: updatedFixture.tournament.numOfLegs,
-        tournamentId: updatedFixture.tournamentId,
-        playerIds: roundWinners,
-      });
+      if (!availableFixture) {
+        const allFixturesOfRound = await prisma.fixture.findMany({
+          where: {
+            round: updatedFixture.round,
+            tournamentId: updatedFixture.tournamentId,
+          },
+        });
+        const roundWinners = getRoundWinners(allFixturesOfRound);
+        await saveGenerateKnockoutFixtures(
+          round + 1,
+          {
+            numOfLegs: updatedFixture.tournament.numOfLegs,
+            tournamentId: updatedFixture.tournamentId,
+            playerIds: roundWinners,
+          },
+          prisma,
+          false,
+        );
+      }
     }
-  }
-  return updatedFixture;
+    return updatedFixture;
+  });
 };
 
 type DBFixtureInput = Omit<Fixture, 'id' | 'createdAt'>;
@@ -87,13 +120,22 @@ type SaveGeneratedFixtures = {
   numOfLegs: number;
 };
 
+const sum = (...numbers: (number | null)[]) => {
+  return numbers.reduce((a, c) => ensureNum(a) + ensureNum(c));
+};
+
+const ensureNum = (num: number | string | null) => Number(num) || 0;
+
 export const saveGenerateKnockoutFixtures = (
   round: number,
   { playerIds, tournamentId, numOfLegs }: SaveGeneratedFixtures,
+  prisma: PrismaTransaction,
+  shouldShuffle: boolean,
 ) => {
   const allNextKnockoutFixtures = generateKnockoutFixtures(
     playerIds.map((v) => v.toString()),
     numOfLegs,
+    shouldShuffle,
   );
   const dbFixtures: DBFixtureInput[] = [];
   allNextKnockoutFixtures.forEach((f) => {
@@ -122,11 +164,10 @@ export const saveGenerateKnockoutFixtures = (
   });
 };
 
-export const saveGeneratedLeagueFixtures = ({
-  playerIds,
-  tournamentId,
-  numOfLegs,
-}: SaveGeneratedFixtures) => {
+export const saveGeneratedLeagueFixtures = (
+  { playerIds, tournamentId, numOfLegs }: SaveGeneratedFixtures,
+  prisma: PrismaTransaction,
+) => {
   const allFixtures = generateLeagueFixtures(
     playerIds.map((v) => v.toString()),
     numOfLegs,
@@ -165,8 +206,8 @@ const getRoundWinners = (fixtures?: Fixture[]) => {
     }
   > = {};
   fixtures?.forEach((f) => {
-    const homeId = f.homeId || 0;
-    const awayId = f.awayId || 0;
+    const homeId = ensureNum(f.homeId);
+    const awayId = ensureNum(f.awayId);
     const id = homeId > awayId ? `${awayId}-${homeId}` : `${homeId}-${awayId}`;
     if (!result[id]) {
       result[id] = {
@@ -182,9 +223,9 @@ const getRoundWinners = (fixtures?: Fixture[]) => {
       };
     }
     result[id].playerA.scores +=
-      homeId > awayId ? +f.awayScore! || 0 : +f.homeScore! || 0;
+      homeId > awayId ? ensureNum(f.awayScore) : ensureNum(f.homeScore);
     result[id].playerB.scores +=
-      awayId > homeId ? +f.awayScore! || 0 : +f.homeScore! || 0;
+      awayId > homeId ? ensureNum(f.awayScore) : ensureNum(f.homeScore);
   });
   return Object.values(result).map((r) => {
     if (r.playerA.scores > r.playerB.scores) return r.playerA.id;

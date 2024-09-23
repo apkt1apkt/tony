@@ -4,8 +4,9 @@ import { SYSTEM_PLAYER } from '../constants';
 export const generateKnockoutFixtures = (
   matchPlayers: string[],
   numOfLegs: number,
+  shouldShuffle: boolean,
 ) => {
-  const players = shuffle(matchPlayers);
+  const players = shouldShuffle ? shuffle(matchPlayers) : matchPlayers;
   const mid = Math.ceil(players.length / 2);
   let groupA = players.length <= 2 ? players : players.slice(0, mid);
   let groupB = players.length <= 2 ? [] : players.slice(mid);

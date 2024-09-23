@@ -4,6 +4,7 @@ import { Card, List, Typography, Row, Col, Divider, Collapse, Input, Button, mes
 import { Fixture, Tournament } from "../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiPost } from "../api";
+import { NUM_OF_CONSOLES } from "../constant";
 
 const { Text } = Typography;
 const { Panel } = Collapse;
@@ -38,8 +39,12 @@ const Fixtures = (props: { tournament?: Tournament }) => {
               key={round}
             >
               <List
-                grid={{ gutter: 8, column: 3 }}
-                dataSource={fixtures?.filter((fixture) => fixture.round === round)}
+                grid={{ gutter: 8, column: NUM_OF_CONSOLES }}
+                dataSource={smartShuffle(
+                  fixtures?.filter((fixture) => fixture.round === round),
+                  round,
+                  props.tournament?.type === "Knockout"
+                )}
                 bordered
                 size="small"
                 renderItem={(fixture) => <FixtureRound fixture={fixture} isActiveRound={isActiveRound} />}
@@ -172,5 +177,12 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
     </div>
   );
 };
+
+function smartShuffle(arr: any[] | undefined, num: number, doSmartShuffle: boolean) {
+  if (!doSmartShuffle) return arr;
+  if (!arr?.length) return arr;
+  const n = num % arr.length;
+  return arr.slice(n).concat(arr.slice(0, n));
+}
 
 export default Fixtures;

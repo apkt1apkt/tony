@@ -1,5 +1,5 @@
 import { Tournament } from '@prisma/client';
-import { prisma } from '../db';
+import { prisma, PrismaTransaction } from '../db';
 import {
   saveGeneratedLeagueFixtures,
   saveGenerateKnockoutFixtures,
@@ -51,46 +51,56 @@ export const getLatestOnGoingTournament = async () => {
 export const createTournament = async (
   payload: Pick<Tournament, 'name' | 'type' | 'numOfLegs'>,
 ) => {
-  const activePlayers = await prisma.player.findMany({
-    where: {
-      isActive: true,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  const newTournament = await prisma.tournament.create({
-    data: {
-      name: payload.name,
-      numOfPlayers: activePlayers.length,
-      numOfLegs: payload.numOfLegs,
-      type: payload.type,
-      players: {
-        connect: activePlayers.map((player) => ({ id: player.id })),
+  return prisma.$transaction(async (prisma) => {
+    const activePlayers = await prisma.player.findMany({
+      where: {
+        isActive: true,
       },
-    },
-    include: {
-      players: true,
-    },
+      select: {
+        id: true,
+      },
+    });
+
+    const newTournament = await prisma.tournament.create({
+      data: {
+        name: payload.name,
+        numOfPlayers: activePlayers.length,
+        numOfLegs: payload.numOfLegs,
+        type: payload.type,
+        players: {
+          connect: activePlayers.map((player) => ({ id: player.id })),
+        },
+      },
+      include: {
+        players: true,
+      },
+    });
+
+    if (payload.type === 'League') {
+      await saveGeneratedLeagueFixtures(
+        {
+          playerIds: activePlayers.map((v) => v.id),
+          numOfLegs: payload.numOfLegs,
+          tournamentId: newTournament.id,
+        },
+        prisma,
+      );
+    }
+
+    if (payload.type === 'Knockout') {
+      await saveGenerateKnockoutFixtures(
+        1,
+        {
+          playerIds: activePlayers.map((v) => v.id),
+          numOfLegs: payload.numOfLegs,
+          tournamentId: newTournament.id,
+        },
+        prisma,
+        true,
+      );
+    }
+    return newTournament;
   });
-
-  if (payload.type === 'League') {
-    await saveGeneratedLeagueFixtures({
-      playerIds: activePlayers.map((v) => v.id),
-      numOfLegs: payload.numOfLegs,
-      tournamentId: newTournament.id,
-    });
-  }
-
-  if (payload.type === 'Knockout') {
-    await saveGenerateKnockoutFixtures(1, {
-      playerIds: activePlayers.map((v) => v.id),
-      numOfLegs: payload.numOfLegs,
-      tournamentId: newTournament.id,
-    });
-  }
-  return newTournament;
 };
 
 export const calculateStandings = async (tournamentId: number) => {

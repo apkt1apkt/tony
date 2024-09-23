@@ -2,6 +2,7 @@
 import { Bracket, IRenderSeedProps, Seed, SeedItem, SeedTeam } from "react-brackets";
 import { Spin, Typography } from "antd";
 import { Fixture, Tournament } from "../types";
+import { useMemo } from "react";
 
 const { Text } = Typography;
 
@@ -20,7 +21,10 @@ type SeedTeamProps = {
 };
 
 const DrawPage = (props: { tournament?: Tournament }) => {
-  const rounds = mapTournamentToKnockout(props.tournament);
+  const rounds = useMemo(
+    () => mapTournamentToKnockout(props.tournament?.numOfPlayers || 0, props.tournament?.fixtures),
+    [props.tournament?.numOfPlayers, props.tournament?.fixtures]
+  );
   if (!rounds) return <Spin spinning></Spin>;
   return (
     <div style={{ overflow: "auto" }}>
@@ -70,13 +74,13 @@ const groupFixturesByTeams = (fixtures?: Fixture[]) => {
   return Object.values(result);
 };
 
-const mapTournamentToKnockout = (tournament?: Tournament) => {
-  if (!tournament?.fixtures?.length) return;
-  const roundFixtures = groupFixturesByRounds(tournament.fixtures);
+const mapTournamentToKnockout = (numOfPlayers: number, fixtures?: Fixture[]) => {
+  if (!fixtures?.length) return;
+  const roundFixtures = groupFixturesByRounds(fixtures);
   return Object.keys(roundFixtures).map((round) => {
     const fixtures = groupFixturesByTeams(roundFixtures[round as any]);
     return {
-      title: getTournamentRoundLabel(tournament.numOfPlayers, Number(round)),
+      title: getTournamentRoundLabel(numOfPlayers, Number(round)),
       seeds: fixtures.map((f) => ({
         id: f.id,
         teams: [f.playerA, f.playerB],
