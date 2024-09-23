@@ -6,6 +6,7 @@ import FixturesPage from "./FixturesPage";
 import { useGetTournament } from "../hooks/tournaments";
 import { Tournament } from "../types";
 import { TournamentTypeDisplay } from "../components/TournamentTypeDisplay";
+import DrawPage from "./DrawPage";
 
 export const TournamentInfo = (props: { tournament: Tournament; isLoading: boolean }) => {
   const fixtureStatus = useMemo(() => {
@@ -13,14 +14,15 @@ export const TournamentInfo = (props: { tournament: Tournament; isLoading: boole
       played: 0,
       toPlay: 0,
     };
-    props.tournament.fixtures?.forEach((f) => {
+    props.tournament?.fixtures?.forEach((f) => {
       if (f.away && f.home) {
         if (f.awayScore === null || f.homeScore === null) fixtureStatus.toPlay += 1;
         else fixtureStatus.played += 1;
       }
     });
     return fixtureStatus;
-  }, [props.tournament.fixtures]);
+  }, [props.tournament?.fixtures]);
+  if (!props.tournament?.fixtures) return "";
   return (
     <Spin spinning={props.isLoading}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -49,7 +51,8 @@ export const TournamentInfo = (props: { tournament: Tournament; isLoading: boole
       <Divider />
       <Row gutter={[12, 12]}>
         <Col xs={24} md={12}>
-          <StandingPage tournament={props.tournament} />
+          {props.tournament.type === "Knockout" && <DrawPage tournament={props.tournament} />}
+          {props.tournament.type === "League" && <StandingPage tournament={props.tournament} />}
         </Col>
         <Col xs={24} md={12}>
           <FixturesPage tournament={props.tournament} />

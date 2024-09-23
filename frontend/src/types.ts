@@ -2,6 +2,7 @@ export type Tournament = {
   id: number;
   name: string;
   type: TournamentType;
+  numOfPlayers: number;
   fixtures?: Fixture[];
   standings?: Standing[];
 };
@@ -19,7 +20,7 @@ export type Fixture = {
 
 export type Player = {
   id: number;
-  name: number;
+  name: string;
 };
 
 export type TournamentType = "League" | "Knockout";

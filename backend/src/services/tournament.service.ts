@@ -1,6 +1,9 @@
 import { Tournament } from '@prisma/client';
 import { prisma } from '../db';
-import { saveGeneratedLeagueFixtures } from './fixture.service';
+import {
+  saveGeneratedLeagueFixtures,
+  saveGenerateKnockoutFixtures,
+} from './fixture.service';
 
 export const getTournaments = async () => {
   return prisma.tournament.findMany({
@@ -72,11 +75,21 @@ export const createTournament = async (
     },
   });
 
-  await saveGeneratedLeagueFixtures({
-    playerIds: activePlayers.map((v) => v.id),
-    numOfLegs: 2,
-    tournamentId: newTournament.id,
-  });
+  if (payload.type === 'League') {
+    await saveGeneratedLeagueFixtures({
+      playerIds: activePlayers.map((v) => v.id),
+      numOfLegs: payload.numOfLegs,
+      tournamentId: newTournament.id,
+    });
+  }
+
+  if (payload.type === 'Knockout') {
+    await saveGenerateKnockoutFixtures(1, {
+      playerIds: activePlayers.map((v) => v.id),
+      numOfLegs: payload.numOfLegs,
+      tournamentId: newTournament.id,
+    });
+  }
   return newTournament;
 };
 

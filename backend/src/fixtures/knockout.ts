@@ -1,22 +1,37 @@
 import { shuffle } from 'lodash';
 import { SYSTEM_PLAYER } from '../constants';
 
-export const generateKnockoutFixtures = (matchPlayers: string[]) => {
+export const generateKnockoutFixtures = (
+  matchPlayers: string[],
+  numOfLegs: number,
+) => {
   const players = shuffle(matchPlayers);
   const mid = Math.ceil(players.length / 2);
-  let groupA = players.slice(0, mid);
-  let groupB = players.slice(mid);
+  let groupA = players.length <= 2 ? players : players.slice(0, mid);
+  let groupB = players.length <= 2 ? [] : players.slice(mid);
   groupA = ensurePowerOf2(groupA);
   groupB = ensurePowerOf2(groupB);
-  return [...generateFixtures(groupA), ...generateFixtures(groupB)];
+  const groupAFixtures = generateFixtures(groupA, numOfLegs);
+  const groupBFixtures = generateFixtures(groupB, numOfLegs);
+  return [
+    ...groupAFixtures.leg1Fixtures,
+    ...groupBFixtures.leg1Fixtures,
+    ...groupAFixtures.leg2Fixtures,
+    ...groupBFixtures.leg2Fixtures,
+  ];
 };
 
-const generateFixtures = (players: string[]) => {
-  let fixtures = [];
+const generateFixtures = (players: string[], numOfLegs: number) => {
+  const leg1Fixtures = [];
+  const leg2Fixtures = [];
   for (let i = 0; i < players.length; i += 2) {
-    fixtures.push([players[i], players[i + 1]]);
+    leg1Fixtures.push([players[i], players[i + 1]]);
+    if (numOfLegs === 2) leg2Fixtures.push([players[i + 1], players[i]]);
   }
-  return fixtures;
+  return {
+    leg1Fixtures,
+    leg2Fixtures,
+  };
 };
 
 const nextPowerOf2 = (n: number) => {
