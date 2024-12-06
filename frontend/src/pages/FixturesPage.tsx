@@ -81,6 +81,14 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
     },
   });
 
+  const { mutate: clearFixtureScore, isPending: isClearing } = useMutation({
+    mutationFn: () => apiPut(`/fixtures/${props.fixture.id}/scores/clear`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`tournament`] });
+      message.success("Scores Cleared Successfully");
+    },
+  });
+
   useEffect(() => {
     setScores({
       homeScore: homeScore || 0,
@@ -99,8 +107,13 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
     setInEditMode(false);
   };
 
+  const handleClearScore = () => {
+    clearFixtureScore();
+    setInEditMode(false);
+  };
+
   return (
-    <Spin spinning={isSaving || isUpdating} key={props.fixture.id}>
+    <Spin spinning={isSaving || isUpdating || isClearing} key={props.fixture.id}>
       <Row justify="center" align="middle" style={{ padding: "2px 0" }}>
         <Col span={8} style={{ textAlign: "right" }}>
           <Text
@@ -199,7 +212,12 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
                     Update
                   </Button>
                 </Popconfirm>
-                <Button size="small" type="primary" danger onClick={() => setInEditMode(false)}>
+                <Popconfirm title={`Confirm to clear scores`} onConfirm={handleClearScore} okText="Yes" cancelText="No">
+                  <Button size="small" type="primary" danger>
+                    Clear
+                  </Button>
+                </Popconfirm>
+                <Button size="small" type="text" onClick={() => setInEditMode(false)}>
                   Cancel
                 </Button>
               </>

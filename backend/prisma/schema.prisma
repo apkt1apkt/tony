@@ -65,6 +65,7 @@ model Fixture {
 
   @@index([round])
   @@index([tournamentId])
+  @@index([round, tournamentId, homeScore, awayScore])
   @@index([homeId])
   @@index([awayId])
 }

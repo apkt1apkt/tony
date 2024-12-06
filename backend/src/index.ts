@@ -64,6 +64,10 @@ router.put('/fixtures/:id/scores', async (req, res) => {
   );
 });
 
+router.put('/fixtures/:id/scores/clear', async (req, res) => {
+  res.json(await fixtureService.clearFixtureScore(Number(req.params.id)));
+});
+
 app.use('/tony', router);
 
 app.use((err: any, req: any, res: any, next: any) => {

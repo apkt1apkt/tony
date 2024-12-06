@@ -1,4 +1,4 @@
-import { Fixture, TournamentType } from '@prisma/client';
+import { Fixture, PrismaClient, TournamentType } from '@prisma/client';
 import { generateLeagueFixtures } from '../fixtures/league';
 import { prisma, PrismaTransaction } from '../db';
 import { generateKnockoutFixtures } from '../fixtures/knockout';
@@ -8,21 +8,88 @@ type Score = {
   awayScore: number;
 };
 
-export const editFixtureScore = async (fixtureId: number, score: Score) => {
+export const clearFixtureScore = async (fixtureId: number) => {
   const updatedFixture = await prisma.fixture.update({
     where: {
       id: fixtureId,
     },
     data: {
-      homeScore: score.homeScore,
-      awayScore: score.awayScore,
+      homeScore: null,
+      awayScore: null,
     },
   });
   return updatedFixture;
 };
 
+export const editFixtureScore = async (fixtureId: number, score: Score) => {
+  return await prisma.$transaction(async (prisma) => {
+    const fixture = await prisma.fixture.findUniqueOrThrow({
+      where: {
+        id: fixtureId,
+      },
+      include: {
+        tournament: true,
+      },
+    });
+
+    const isKnockout = fixture.tournament.type === 'Knockout';
+
+    if (isKnockout) {
+      const currentRound = await prisma.fixture.findMany({
+        where: {
+          tournamentId: fixture.tournamentId,
+          homeScore: {
+            not: null,
+          },
+          awayScore: {
+            not: null,
+          },
+        },
+        orderBy: {
+          round: 'desc',
+        },
+        take: 1,
+      });
+      if (fixture.round !== currentRound?.[0]?.round) {
+        throw new Error('You can only edit the current round');
+      }
+      await prisma.fixture.deleteMany({
+        where: {
+          tournamentId: fixture.tournamentId,
+          round: {
+            gt: fixture.round,
+          },
+        },
+      });
+    }
+
+    const updatedFixture = await prisma.fixture.update({
+      where: {
+        id: fixtureId,
+      },
+      include: {
+        tournament: true,
+      },
+      data: {
+        homeScore: score.homeScore,
+        awayScore: score.awayScore,
+      },
+    });
+
+    if (isKnockout) {
+      await generateNextKnockoutFixtureIfApplicable(prisma as any, {
+        numOfLegs: updatedFixture.tournament?.numOfLegs,
+        round: updatedFixture.round,
+        tournamentId: updatedFixture.tournamentId,
+      });
+    }
+
+    return updatedFixture;
+  });
+};
+
 export const saveFixtureScore = async (fixtureId: number, score: Score) => {
-  return prisma.$transaction(async (prisma) => {
+  return await prisma.$transaction(async (prisma) => {
     const updatedFixture = await prisma.fixture.update({
       where: {
         id: fixtureId,
@@ -89,42 +156,61 @@ export const saveFixtureScore = async (fixtureId: number, score: Score) => {
           }
         }
       }
-      const availableFixture = await prisma.fixture.findFirst({
-        where: {
-          round: updatedFixture.round,
-          tournamentId: updatedFixture.tournamentId,
-          OR: [
-            {
-              homeScore: null,
-            },
-            {
-              awayScore: null,
-            },
-          ],
-        },
+      await generateNextKnockoutFixtureIfApplicable(prisma as any, {
+        numOfLegs: updatedFixture.tournament?.numOfLegs,
+        round: updatedFixture.round,
+        tournamentId: updatedFixture.tournamentId,
       });
-      if (!availableFixture) {
-        const allFixturesOfRound = await prisma.fixture.findMany({
-          where: {
-            round: updatedFixture.round,
-            tournamentId: updatedFixture.tournamentId,
-          },
-        });
-        const roundWinners = getRoundWinners(allFixturesOfRound);
-        await saveGenerateKnockoutFixtures(
-          round + 1,
-          {
-            numOfLegs: updatedFixture.tournament.numOfLegs,
-            tournamentId: updatedFixture.tournamentId,
-            playerIds: roundWinners,
-          },
-          prisma,
-          false,
-        );
-      }
     }
     return updatedFixture;
   });
+};
+
+const generateNextKnockoutFixtureIfApplicable = async (
+  prisma: PrismaClient,
+  {
+    round,
+    tournamentId,
+    numOfLegs,
+  }: {
+    round: number;
+    tournamentId: number;
+    numOfLegs: number;
+  },
+) => {
+  const availableFixture = await prisma.fixture.findFirst({
+    where: {
+      round,
+      tournamentId,
+      OR: [
+        {
+          homeScore: null,
+        },
+        {
+          awayScore: null,
+        },
+      ],
+    },
+  });
+  if (!availableFixture) {
+    const allFixturesOfRound = await prisma.fixture.findMany({
+      where: {
+        round,
+        tournamentId,
+      },
+    });
+    const roundWinners = getRoundWinners(allFixturesOfRound);
+    await saveGenerateKnockoutFixtures(
+      round + 1,
+      {
+        numOfLegs,
+        tournamentId,
+        playerIds: roundWinners,
+      },
+      prisma,
+      false,
+    );
+  }
 };
 
 type DBFixtureInput = Omit<Fixture, 'id' | 'createdAt'>;
