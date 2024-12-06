@@ -58,6 +58,12 @@ router.post('/fixtures/:id/scores', async (req, res) => {
   );
 });
 
+router.put('/fixtures/:id/scores', async (req, res) => {
+  res.json(
+    await fixtureService.editFixtureScore(Number(req.params.id), req.body),
+  );
+});
+
 app.use('/tony', router);
 
 app.use((err: any, req: any, res: any, next: any) => {

@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
-import { Card, List, Typography, Row, Col, Divider, Collapse, Input, Button, message, Popconfirm } from "antd";
+import { Card, List, Typography, Row, Col, Divider, Collapse, Input, Button, message, Popconfirm, Spin } from "antd";
 import { Fixture, Tournament } from "../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiPost } from "../api";
+import { apiPost, apiPut } from "../api";
 import { NUM_OF_CONSOLES } from "../constant";
 
 const { Text } = Typography;
@@ -59,16 +59,25 @@ const Fixtures = (props: { tournament?: Tournament }) => {
 
 const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
   const { home, homeScore, away, awayScore } = props.fixture;
+  const [inEditMode, setInEditMode] = useState(false);
   const [scores, setScores] = useState({
     homeScore: props.fixture.homeScore || 0,
     awayScore: props.fixture.awayScore || 0,
   });
   const queryClient = useQueryClient();
-  const { mutate: saveFixtureScore } = useMutation({
+  const { mutate: saveFixtureScore, isPending: isSaving } = useMutation({
     mutationFn: (scores: any) => apiPost(`/fixtures/${props.fixture.id}/scores`, scores),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`tournament`] });
       message.success("Scores Saved Successfully");
+    },
+  });
+
+  const { mutate: editFixtureScore, isPending: isUpdating } = useMutation({
+    mutationFn: (scores: any) => apiPut(`/fixtures/${props.fixture.id}/scores`, scores),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`tournament`] });
+      message.success("Scores Edited Successfully");
     },
   });
 
@@ -85,8 +94,13 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
     saveFixtureScore(scores);
   };
 
+  const handleUpdateScore = () => {
+    editFixtureScore(scores);
+    setInEditMode(false);
+  };
+
   return (
-    <div key={props.fixture.id}>
+    <Spin spinning={isSaving || isUpdating} key={props.fixture.id}>
       <Row justify="center" align="middle" style={{ padding: "2px 0" }}>
         <Col span={8} style={{ textAlign: "right" }}>
           <Text
@@ -102,7 +116,7 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
 
         <Col span={8} style={{ textAlign: "center" }}>
           {isScored ? (
-            <Text style={{ fontSize: 12, color: "#8c8c8c" }}>
+            <Text onDoubleClick={() => setInEditMode(true)} style={{ fontSize: 12, color: "#8c8c8c" }}>
               ({homeScore} - {awayScore})
             </Text>
           ) : (
@@ -123,7 +137,7 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
         </Col>
       </Row>
 
-      {!isScored && (
+      {(!isScored || (inEditMode && away?.name && home?.name)) && (
         <Row style={{ marginBottom: 5 }} gutter={0} justify="center">
           <Col span={6} style={{ textAlign: "right" }}>
             <Input
@@ -160,21 +174,41 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
           </Col>
 
           <Col span={6} style={{ textAlign: "left", marginLeft: -10 }}>
-            <Popconfirm
-              title={`Confirm to save score (${scores.homeScore} - ${scores.awayScore})`}
-              onConfirm={handleSaveScore}
-              okText="Yes"
-              cancelText="No"
-            >
-              <Button size="small" type="primary">
-                Save Score
-              </Button>
-            </Popconfirm>
+            {!inEditMode && (
+              <Popconfirm
+                title={`Confirm to save score (${scores.homeScore} - ${scores.awayScore})`}
+                onConfirm={handleSaveScore}
+                okText="Yes"
+                cancelText="No"
+              >
+                <Button size="small" type="primary">
+                  Save Score
+                </Button>
+              </Popconfirm>
+            )}
+
+            {inEditMode && (
+              <>
+                <Popconfirm
+                  title={`Confirm to update score (${scores.homeScore} - ${scores.awayScore})`}
+                  onConfirm={handleUpdateScore}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button size="small" type="primary">
+                    Update
+                  </Button>
+                </Popconfirm>
+                <Button size="small" type="primary" danger onClick={() => setInEditMode(false)}>
+                  Cancel
+                </Button>
+              </>
+            )}
           </Col>
         </Row>
       )}
       <Divider style={{ marginTop: 0, marginBottom: 0 }} />
-    </div>
+    </Spin>
   );
 };
 

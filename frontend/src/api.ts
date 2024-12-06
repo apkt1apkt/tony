@@ -33,6 +33,20 @@ export async function apiPost(endpoint: string, data: any) {
   }
 }
 
+export async function apiPut(endpoint: string, data: any) {
+  try {
+    const response = await fetch(`/tony${endpoint}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return await handleResponse(response);
+  } catch (e: any) {
+    displayError(e.message || "an err occurred");
+    throw e;
+  }
+}
+
 export const apiDelete = async (endpoint: string) => {
   try {
     const response = await fetch(endpoint, {

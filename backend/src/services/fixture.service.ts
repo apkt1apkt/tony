@@ -3,10 +3,25 @@ import { generateLeagueFixtures } from '../fixtures/league';
 import { prisma, PrismaTransaction } from '../db';
 import { generateKnockoutFixtures } from '../fixtures/knockout';
 
-export const saveFixtureScore = async (
-  fixtureId: number,
-  { homeScore, awayScore }: { homeScore: number; awayScore: number },
-) => {
+type Score = {
+  homeScore: number;
+  awayScore: number;
+};
+
+export const editFixtureScore = async (fixtureId: number, score: Score) => {
+  const updatedFixture = await prisma.fixture.update({
+    where: {
+      id: fixtureId,
+    },
+    data: {
+      homeScore: score.homeScore,
+      awayScore: score.awayScore,
+    },
+  });
+  return updatedFixture;
+};
+
+export const saveFixtureScore = async (fixtureId: number, score: Score) => {
   return prisma.$transaction(async (prisma) => {
     const updatedFixture = await prisma.fixture.update({
       where: {
@@ -16,8 +31,8 @@ export const saveFixtureScore = async (
         tournament: true,
       },
       data: {
-        homeScore,
-        awayScore,
+        homeScore: score.homeScore,
+        awayScore: score.awayScore,
       },
     });
     const round = updatedFixture.round;
