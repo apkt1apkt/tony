@@ -1,1 +1,1 @@
-export const NUM_OF_CONSOLES = 2;
+export const NUM_OF_CONSOLES = 3;

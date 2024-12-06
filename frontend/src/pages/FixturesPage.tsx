@@ -123,7 +123,7 @@ const FixtureRound = (props: { fixture: Fixture; isActiveRound: boolean }) => {
         </Col>
       </Row>
 
-      {props.isActiveRound && !isScored && (
+      {!isScored && (
         <Row style={{ marginBottom: 5 }} gutter={0} justify="center">
           <Col span={6} style={{ textAlign: "right" }}>
             <Input
