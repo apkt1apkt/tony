@@ -68,7 +68,7 @@ export const saveFixtureScore = async (
         ) {
           if (
             sum(updatedFixture.awayScore, reverseFixture.homeScore) ===
-            sum(updatedFixture.awayScore, reverseFixture.homeScore)
+            sum(updatedFixture.homeScore, reverseFixture.awayScore)
           ) {
             throw new Error('Both legs cannot equate to a draw');
           }
