@@ -11,7 +11,7 @@ async function handleResponse(response: Response) {
 
 export async function apiGet(endpoint: string) {
   try {
-    const response = await fetch(`/api${endpoint}`);
+    const response = await fetch(`/tony${endpoint}`);
     return await handleResponse(response);
   } catch (e: any) {
     displayError(e.message || "an err occurred");
@@ -21,7 +21,7 @@ export async function apiGet(endpoint: string) {
 
 export async function apiPost(endpoint: string, data: any) {
   try {
-    const response = await fetch(`/api${endpoint}`, {
+    const response = await fetch(`/tony${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
